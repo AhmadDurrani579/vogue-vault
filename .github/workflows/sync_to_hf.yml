@@ -17,4 +17,4 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # Sends ONLY the 'backend' folder to HF
-          git subtree push --prefix backend https://AhmadDurrani:$HF_TOKEN@huggingface.co/spaces/AhmadDurrani/vogue-vault-api main
+          git push --force https://AhmadDurrani:$HF_TOKEN@huggingface.co/spaces/AhmadDurrani/vogue-vault-api `git subtree split --prefix backend main`:main
