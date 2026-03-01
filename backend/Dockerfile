@@ -11,7 +11,9 @@ WORKDIR $HOME/app
 # 2. Vision Dependencies (Still needed for CLIP/Pillow)
 USER root
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    build-essential \
+    libgl1 \
+    libglx-mesa0 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 USER user
