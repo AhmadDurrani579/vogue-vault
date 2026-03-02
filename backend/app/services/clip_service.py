@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from ..core.ai_engine import FashionCLIPEngine
+from app.core.ai_engine import FashionCLIPEngine
 
 class CLIPService:
     def __init__(self, engine: FashionCLIPEngine): # Engine is passed in, not imported

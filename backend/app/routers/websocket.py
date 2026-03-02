@@ -2,7 +2,7 @@ import io
 import base64
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from PIL import Image
-from ..services.clip_service import CLIPService
+from app.services.clip_service import CLIPService
 
 router = APIRouter()
 
