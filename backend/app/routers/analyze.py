@@ -2,8 +2,8 @@ import io
 import base64
 from fastapi import APIRouter, Depends, Request
 from PIL import Image
-from app.services.clip_service import CLIPService
-from app.schemas.models import AnalysisRequest, AnalysisResponse
+from ..services.clip_service import CLIPService
+from ..schemas.models import AnalysisRequest, AnalysisResponse
 
 router = APIRouter(prefix="/analyze", tags=["Analysis"])
 
