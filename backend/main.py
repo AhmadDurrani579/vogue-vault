@@ -5,6 +5,7 @@ os.environ["TRANSFORMERS_CACHE"] = "/home/user/app/cache"
 import io
 import base64
 import torch
+import torch.nn.functional as F
 from fastapi import FastAPI, Request, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import AutoModel, AutoProcessor
@@ -26,7 +27,6 @@ processor = AutoProcessor.from_pretrained(MODEL_ID, trust_remote_code=True)
 device    = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 
-# Garments FashionCLIP checks against
 LABELS = [
     "leather jacket", "denim jacket", "blazer", "hoodie", "puffer jacket", "trench coat",
     "plain white t-shirt", "graphic t-shirt", "dress shirt", "knit sweater",
@@ -35,7 +35,41 @@ LABELS = [
 ]
 
 
-# ── Health check ─────────────────────────────────────────────
+def get_embedding(image: Image.Image) -> list:
+    inputs = processor(images=image, return_tensors="pt").to(device)
+    with torch.no_grad():
+        image_features = model.get_image_features(inputs["pixel_values"], normalize=True)
+    return image_features.squeeze().tolist()
+
+
+def detect_garments(image: Image.Image) -> list:
+    # Get image features
+    image_inputs = processor(images=image, return_tensors="pt").to(device)
+    with torch.no_grad():
+        image_features = model.get_image_features(image_inputs["pixel_values"], normalize=True)
+
+    # Get text features for each label separately
+    text_inputs = processor(text=LABELS, return_tensors="pt", padding=True).to(device)
+    with torch.no_grad():
+        text_features = model.get_text_features(
+            text_inputs["input_ids"],
+            normalize=True
+        )
+
+    # Compute cosine similarity manually
+    similarity = (image_features @ text_features.T).squeeze(0)
+    scores     = F.softmax(similarity, dim=0)
+
+    detected = [
+        {"garment": LABELS[i], "confidence": round(scores[i].item(), 3)}
+        for i in range(len(LABELS))
+        if scores[i].item() > 0.10
+    ]
+    detected.sort(key=lambda x: x["confidence"], reverse=True)
+    return detected[:5]
+
+
+# ── Health check ──────────────────────────────────────────────
 @app.get("/")
 def home():
     return {
@@ -45,83 +79,34 @@ def home():
     }
 
 
-# ── Analyze via JSON base64 (your existing working endpoint) ─
+# ── Analyze via base64 JSON ───────────────────────────────────
 @app.post("/analyze-garment")
 async def analyze_garment(request: Request):
-    data         = await request.json()
-    image_base64 = data.get("image")
+    data  = await request.json()
+    image = Image.open(io.BytesIO(base64.b64decode(data.get("image")))).convert("RGB")
 
-    # Decode image
-    image_bytes = base64.b64decode(image_base64)
-    image       = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-
-    # Generate embedding (your existing working code untouched)
-    inputs = processor(images=image, return_tensors="pt").to(device)
-    with torch.no_grad():
-        image_features = model.get_image_features(inputs["pixel_values"], normalize=True)
-    embedding = image_features.tolist()[0]
-
-    # Detect garments (NEW)
-    text_inputs = processor(
-        text=LABELS,
-        images=image,
-        return_tensors="pt",
-        padding=True
-    ).to(device)
-
-    with torch.no_grad():
-        outputs = model(**text_inputs)
-
-    scores   = outputs.logits_per_image.softmax(dim=1)[0]
-    detected = [
-        {"garment": LABELS[i], "confidence": round(scores[i].item(), 3)}
-        for i in range(len(LABELS))
-        if scores[i].item() > 0.10
-    ]
-    detected.sort(key=lambda x: x["confidence"], reverse=True)
+    embedding = get_embedding(image)
+    detected  = detect_garments(image)
 
     return {
         "status":     "success",
-        "detected":   detected[:5],
+        "detected":   detected,
         "embedding":  embedding,
         "dimensions": len(embedding)
     }
 
 
-# ── Analyze via direct file upload (easier Postman testing) ──
+# ── Analyze via file upload (Swagger / Postman) ───────────────
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
-    contents = await file.read()
-    image    = Image.open(io.BytesIO(contents)).convert("RGB")
+    image = Image.open(io.BytesIO(await file.read())).convert("RGB")
 
-    # Generate embedding
-    inputs = processor(images=image, return_tensors="pt").to(device)
-    with torch.no_grad():
-        image_features = model.get_image_features(inputs["pixel_values"], normalize=True)
-    embedding = image_features.tolist()[0]
-
-    # Detect garments
-    text_inputs = processor(
-        text=LABELS,
-        images=image,
-        return_tensors="pt",
-        padding=True
-    ).to(device)
-
-    with torch.no_grad():
-        outputs = model(**text_inputs)
-
-    scores   = outputs.logits_per_image.softmax(dim=1)[0]
-    detected = [
-        {"garment": LABELS[i], "confidence": round(scores[i].item(), 3)}
-        for i in range(len(LABELS))
-        if scores[i].item() > 0.10
-    ]
-    detected.sort(key=lambda x: x["confidence"], reverse=True)
+    embedding = get_embedding(image)
+    detected  = detect_garments(image)
 
     return {
         "status":     "success",
-        "detected":   detected[:5],
+        "detected":   detected,
         "embedding":  embedding,
         "dimensions": len(embedding)
     }
@@ -136,38 +121,24 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_json()
 
             if data.get("type") == "analyze":
-
                 await websocket.send_json({
                     "step": 1, "status": "active",
                     "label": "Looking at what you're wearing"
                 })
 
-                image_bytes = base64.b64decode(data.get("image"))
-                image       = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                image = Image.open(
+                    io.BytesIO(base64.b64decode(data.get("image")))
+                ).convert("RGB")
 
-                inputs = processor(images=image, return_tensors="pt").to(device)
-                with torch.no_grad():
-                    image_features = model.get_image_features(inputs["pixel_values"], normalize=True)
-                embedding = image_features.tolist()[0]
-
-                text_inputs = processor(
-                    text=LABELS, images=image,
-                    return_tensors="pt", padding=True
-                ).to(device)
-                with torch.no_grad():
-                    outputs = model(**text_inputs)
-                scores   = outputs.logits_per_image.softmax(dim=1)[0]
-                detected = [
-                    {"garment": LABELS[i], "confidence": round(scores[i].item(), 3)}
-                    for i in range(len(LABELS)) if scores[i].item() > 0.10
-                ]
-                detected.sort(key=lambda x: x["confidence"], reverse=True)
+                embedding = get_embedding(image)
+                detected  = detect_garments(image)
 
                 await websocket.send_json({
-                    "step": 1, "status": "done",
-                    "label": "Looking at what you're wearing",
-                    "detail": f"{len(detected)} items detected",
-                    "garments": detected[:5]
+                    "step":     1,
+                    "status":   "done",
+                    "label":    "Looking at what you're wearing",
+                    "detail":   f"{len(detected)} items detected",
+                    "garments": detected
                 })
 
                 await websocket.send_json({
