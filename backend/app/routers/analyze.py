@@ -7,6 +7,7 @@ from app.schemas.models import AnalysisRequest, AnalysisResponse
 
 router = APIRouter(prefix="/analyze", tags=["Analysis"])
 
+# Dependency to inject the service
 def get_clip_service(request: Request) -> CLIPService:
     return CLIPService(request.app.state.clip_engine)
 

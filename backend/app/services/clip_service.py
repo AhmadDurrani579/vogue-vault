@@ -1,10 +1,9 @@
+import torch
 import torch.nn.functional as F
 from app.core.ai_engine import FashionCLIPEngine
 
-from app.routers import analyze, websocket
-
 class CLIPService:
-    def __init__(self, engine: FashionCLIPEngine):
+    def __init__(self, engine: FashionCLIPEngine): # Engine is passed in, not imported
         self.engine = engine
         self.labels = [
             "leather jacket", "denim jacket", "blazer", "hoodie", "puffer jacket",
@@ -12,9 +11,9 @@ class CLIPService:
         ]
 
     async def analyze(self, image):
+        # Generate the 512-dim embedding
         embedding = self.engine.generate_embedding(image)
         
-        # Zero-shot classification
         img_tensor = self.engine.preprocess(image).unsqueeze(0).to(self.engine.device)
         with torch.no_grad():
             image_features = self.engine.model.encode_image(img_tensor, normalize=True)
