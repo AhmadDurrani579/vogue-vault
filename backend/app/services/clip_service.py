@@ -1,6 +1,8 @@
 import torch.nn.functional as F
 from app.core.ai_engine import FashionCLIPEngine
 
+from app.routers import analyze, websocket
+
 class CLIPService:
     def __init__(self, engine: FashionCLIPEngine):
         self.engine = engine
