@@ -60,7 +60,7 @@ def detect_garments(image: Image.Image) -> list:
 
     # Cosine similarity
     similarity = (image_features @ text_features.T).squeeze(0)
-    scores     = F.softmax(similarity * 100, dim=0)
+    scores     = F.softmax(similarity * 10, dim=0)
 
     detected = [
         {"garment": LABELS[i], "confidence": round(scores[i].item(), 3)}
