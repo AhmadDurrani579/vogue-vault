@@ -1,4 +1,8 @@
 import os
+
+os.environ["HF_HOME"] = "/home/user/app/cache"
+os.environ["TRANSFORMERS_CACHE"] = "/home/user/app/cache"
+
 import io
 import base64
 import torch
