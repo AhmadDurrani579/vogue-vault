@@ -5,10 +5,10 @@ os.environ["TRANSFORMERS_CACHE"] = "/home/user/app/cache"
 import io
 import base64
 import torch
+import open_clip
 import torch.nn.functional as F
 from fastapi import FastAPI, Request, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from transformers import AutoModel, AutoProcessor
 from PIL import Image
 
 app = FastAPI()
@@ -20,12 +20,17 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Load Marqo FashionCLIP
-MODEL_ID  = "Marqo/marqo-fashionCLIP"
-model     = AutoModel.from_pretrained(MODEL_ID, trust_remote_code=True)
-processor = AutoProcessor.from_pretrained(MODEL_ID, trust_remote_code=True)
-device    = "cuda" if torch.cuda.is_available() else "cpu"
+# Load Marqo FashionCLIP via open_clip
+# This is the correct way to load Marqo models
+MODEL_ID = "hf-hub:Marqo/marqo-fashionCLIP"
+device   = "cuda" if torch.cuda.is_available() else "cpu"
+
+print(f"Loading FashionCLIP on {device}...")
+model, _, preprocess = open_clip.create_model_and_transforms(MODEL_ID)
+tokenizer = open_clip.get_tokenizer(MODEL_ID)
 model.to(device)
+model.eval()
+print("Model ready!")
 
 LABELS = [
     "leather jacket", "denim jacket", "blazer", "hoodie", "puffer jacket", "trench coat",
@@ -36,34 +41,31 @@ LABELS = [
 
 
 def get_embedding(image: Image.Image) -> list:
-    inputs = processor(images=image, return_tensors="pt").to(device)
+    img_tensor = preprocess(image).unsqueeze(0).to(device)
     with torch.no_grad():
-        image_features = model.get_image_features(inputs["pixel_values"], normalize=True)
-    return image_features.squeeze().tolist()
+        features = model.encode_image(img_tensor, normalize=True)
+    return features.squeeze().tolist()
 
 
 def detect_garments(image: Image.Image) -> list:
-    # Get image features
-    image_inputs = processor(images=image, return_tensors="pt").to(device)
+    # Image features
+    img_tensor = preprocess(image).unsqueeze(0).to(device)
     with torch.no_grad():
-        image_features = model.get_image_features(image_inputs["pixel_values"], normalize=True)
+        image_features = model.encode_image(img_tensor, normalize=True)
 
-    # Get text features for each label separately
-    text_inputs = processor(text=LABELS, return_tensors="pt", padding=True).to(device)
+    # Text features — tokenizer handles 77 token padding correctly
+    text_tokens = tokenizer(LABELS).to(device)
     with torch.no_grad():
-        text_features = model.get_text_features(
-            text_inputs["input_ids"],
-            normalize=True
-        )
+        text_features = model.encode_text(text_tokens, normalize=True)
 
-    # Compute cosine similarity manually
+    # Cosine similarity
     similarity = (image_features @ text_features.T).squeeze(0)
-    scores     = F.softmax(similarity, dim=0)
+    scores     = F.softmax(similarity * 100, dim=0)
 
     detected = [
         {"garment": LABELS[i], "confidence": round(scores[i].item(), 3)}
         for i in range(len(LABELS))
-        if scores[i].item() > 0.10
+        if scores[i].item() > 0.05
     ]
     detected.sort(key=lambda x: x["confidence"], reverse=True)
     return detected[:5]
@@ -85,14 +87,11 @@ async def analyze_garment(request: Request):
     data  = await request.json()
     image = Image.open(io.BytesIO(base64.b64decode(data.get("image")))).convert("RGB")
 
-    embedding = get_embedding(image)
-    detected  = detect_garments(image)
-
     return {
         "status":     "success",
-        "detected":   detected,
-        "embedding":  embedding,
-        "dimensions": len(embedding)
+        "detected":   detect_garments(image),
+        "embedding":  get_embedding(image),
+        "dimensions": 512
     }
 
 
@@ -101,14 +100,11 @@ async def analyze_garment(request: Request):
 async def analyze(file: UploadFile = File(...)):
     image = Image.open(io.BytesIO(await file.read())).convert("RGB")
 
-    embedding = get_embedding(image)
-    detected  = detect_garments(image)
-
     return {
         "status":     "success",
-        "detected":   detected,
-        "embedding":  embedding,
-        "dimensions": len(embedding)
+        "detected":   detect_garments(image),
+        "embedding":  get_embedding(image),
+        "dimensions": 512
     }
 
 
@@ -126,16 +122,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     "label": "Looking at what you're wearing"
                 })
 
-                image = Image.open(
-                    io.BytesIO(base64.b64decode(data.get("image")))
-                ).convert("RGB")
-
+                image    = Image.open(io.BytesIO(base64.b64decode(data.get("image")))).convert("RGB")
+                detected = detect_garments(image)
                 embedding = get_embedding(image)
-                detected  = detect_garments(image)
 
                 await websocket.send_json({
-                    "step":     1,
-                    "status":   "done",
+                    "step":     1, "status": "done",
                     "label":    "Looking at what you're wearing",
                     "detail":   f"{len(detected)} items detected",
                     "garments": detected
