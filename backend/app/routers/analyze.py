@@ -68,7 +68,7 @@ async def analyze_full(
     detected, embedding = await clip.analyze(image)
 
     # Step 2: pgvector search
-    similar = db.search_similar(embedding, occasion)
+    similar = await db.search_similar(embedding, occasion)
 
     # Step 3: OpenAI verdict + self-check
     verdict = ai.get_verdict(detected, similar, occasion)
