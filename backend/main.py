@@ -20,8 +20,15 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    app.state.clip_engine = FashionCLIPEngine(settings.MODEL_ID)
-    app.state.db          = DBService()
+    try:
+        app.state.clip_engine = FashionCLIPEngine(settings.MODEL_ID)
+        app.state.db          = DBService()
+        await app.state.db.connect()
+        app.state.ai          = AIService()
+        print("[Startup] All services ready!")
+    except Exception as e:
+        print(f"[Startup ERROR] {e}")
+        raise
 
 @app.get("/")
 def health():
