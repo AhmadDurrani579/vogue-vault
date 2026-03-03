@@ -1,6 +1,3 @@
-import os
-from pydantic_settings import BaseSettings
-
 class Settings(BaseSettings):
 
     # App
@@ -16,6 +13,11 @@ class Settings(BaseSettings):
 
     # OpenAI
     OPENAI_API_KEY: str = ""
+
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY:    str = ""
+    CLOUDINARY_API_SECRET: str = ""
 
     class Config:
         env_file = ".env"
