@@ -49,7 +49,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "label": "Searching 5,000 similar outfits"
             })
 
-            similar = db.search_similar(embedding, occasion)
+            similar = await db.search_similar(embedding, occasion)
 
             await websocket.send_json({
                 "step":    2, "status": "done",
@@ -64,7 +64,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "label": "Analysing your outfit"
             })
 
-            verdict = ai.get_verdict(detected, similar, occasion)
+            verdict = await ai.get_verdict(detected, similar, occasion)
 
             await websocket.send_json({
                 "step": 3, "status": "done",
