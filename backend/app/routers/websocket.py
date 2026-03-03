@@ -50,7 +50,7 @@ async def websocket_endpoint(websocket: WebSocket):
             
             similar = await db.search_similar(embedding, occasion)
             if not similar and occasion:
-                similar = await db.search_similar(embedding, None)
+                similar = await db.search_similar(embedding, "casual")
 
             await safe_send({
                 "step": 2, "status": "done", 
