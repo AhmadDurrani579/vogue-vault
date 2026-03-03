@@ -14,8 +14,12 @@ class AIService:
             print("[AI] No OPENAI_API_KEY — running in stub mode")
 
     def get_verdict(self, garments: list, similar_outfits: list, occasion: str) -> dict:
+        print(f"[AI] get_verdict called — client: {self.client is not None}")
+        print(f"[AI] Garments: {len(garments)}, Similar: {len(similar_outfits)}")
+
         """Generate outfit verdict using RAG context from pgvector results"""
         if not self.client:
+            print("[AI] No client — returning stub")
             return self._stub_verdict()
 
         try:
