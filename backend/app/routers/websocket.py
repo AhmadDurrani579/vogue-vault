@@ -1,10 +1,9 @@
 import io
 import base64
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from starlette.websockets import WebSocketState # Import the state tracker
+from starlette.websockets import WebSocketState
 from PIL import Image
 from app.services.clip_service import CLIPService
-from app.services.db_service import DBService
 from app.services.ai_service import AIService
 
 router = APIRouter()
@@ -12,75 +11,90 @@ router = APIRouter()
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    
-    # Initialize services
+
     clip = CLIPService(websocket.app.state.clip_engine)
-    db = websocket.app.state.db
-    ai = websocket.app.state.ai
+    db   = websocket.app.state.db
+    ai   = websocket.app.state.ai
+
+    async def safe_send(payload):
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_json(payload)
 
     try:
         while True:
-            # Check if still connected before receiving
             if websocket.client_state == WebSocketState.DISCONNECTED:
                 break
-                
-            data = await websocket.receive_json()
-            occasion = data.get("occasion", "casual")
-            
-            # Helper function to send safely
-            async def safe_send(payload):
-                if websocket.client_state == WebSocketState.CONNECTED:
-                    await websocket.send_json(payload)
 
-            # -- Step 1: CLIP --
-            await safe_send({"step": 1, "status": "active", "label": "Looking at what you're wearing"})
-            
-            image_data = base64.b64decode(data.get("image"))
-            image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            data     = await websocket.receive_json()
+            occasion = data.get("occasion", "casual")
+
+            # ── Step 1: FashionCLIP ──────────────────────
+            await safe_send({ "step": 1, "status": "active", "label": "Looking at what you're wearing" })
+
+            image             = Image.open(io.BytesIO(base64.b64decode(data.get("image")))).convert("RGB")
             detected, embedding = await clip.analyze(image)
-            
+
             await safe_send({
-                "step": 1, "status": "done", 
-                "label": "Analysis Complete", 
+                "step":     1,
+                "status":   "done",
+                "label":    "Looking at what you're wearing",
+                "detail":   f"{len(detected)} garments identified",
                 "garments": detected
             })
 
-            # -- Step 2: Neon DB --
-            await safe_send({"step": 2, "status": "active", "label": "Searching similar outfits"})
-            
+            # ── Step 2: pgvector search ──────────────────
+            await safe_send({ "step": 2, "status": "active", "label": "Searching 5,000 similar outfits" })
+
             similar = await db.search_similar(embedding, occasion)
-            if not similar and occasion:
+            if not similar:
                 similar = await db.search_similar(embedding, "casual")
 
             await safe_send({
-                "step": 2, "status": "done", 
-                "label": f"Found {len(similar)} matches", 
+                "step":    2,
+                "status":  "done",
+                "label":   "Searching 5,000 similar outfits",
+                "detail":  f"{len(similar)} matches found",
                 "matches": similar
             })
 
-            # -- Step 3: OpenAI --
-            await safe_send({"step": 3, "status": "active", "label": "Generating your verdict"})
-            
-            # Use ai.get_verdict (removed await based on your previous logic)
+            # ── Step 3: OpenAI verdict ───────────────────
+            await safe_send({ "step": 3, "status": "active", "label": "Analysing your outfit" })
+
             verdict = ai.get_verdict(detected, similar, occasion)
 
             await safe_send({
-                "step": 3, "status": "done", 
-                "label": "Verdict Ready", 
-                "verdict": verdict
+                "step":   3,
+                "status": "done",
+                "label":  "Analysing your outfit",
+                "detail": verdict.get("summary", "")
             })
 
-            # -- Final Step --
+            # ── Step 4: Self-check ───────────────────────
+            await safe_send({ "step": 4, "status": "active", "label": "Double-checking the findings" })
+
             await safe_send({
-                "step": 5, "status": "done", "type": "complete", 
-                "label": "Everything finished!", "verdict": verdict
+                "step":   4,
+                "status": "done",
+                "label":  "Double-checking the findings",
+                "detail": "Verified ✓" if verdict.get("verified") else "Corrected and improved ✓"
+            })
+
+            # ── Step 5: Complete ─────────────────────────
+            await safe_send({ "step": 5, "status": "active", "label": "Writing your verdict" })
+
+            await safe_send({
+                "step":    5,
+                "status":  "done",
+                "type":    "complete",
+                "label":   "Writing your verdict",
+                "detail":  verdict.get("fix", ""),
+                "verdict": verdict,
+                "matches": similar
             })
 
     except WebSocketDisconnect:
-        # Graceful exit when client leaves
-        print("[WS] Client disconnected normally")
+        print("[WS] Client disconnected")
     except Exception as e:
-        # Avoid sending errors if the socket is already closed
         if websocket.client_state == WebSocketState.CONNECTED:
-            await websocket.send_json({"step": "error", "label": f"Error: {str(e)}"})
-        print(f"[WS] Unexpected error: {e}")
+            await websocket.send_json({"type": "error", "message": str(e)})
+        print(f"[WS] Error: {e}")
