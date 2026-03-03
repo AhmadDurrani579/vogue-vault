@@ -63,5 +63,17 @@ async def debug():
         "db_url_set": bool(settings.DATABASE_URL),
     }
 
+@app.get("/test-openai")
+async def test_openai():
+    try:
+        ai = app.state.ai
+        result = ai.get_verdict(
+            garments=[{"garment": "leather jacket", "confidence": 0.3}],
+            similar_outfits=[],
+            occasion="casual"
+        )
+        return {"status": "success", "verdict": result}
+    except Exception as e:
+        return {"status": "error", "error": f"{type(e).__name__}: {str(e)}"}
 app.include_router(analyze.router)
 app.include_router(websocket.router)

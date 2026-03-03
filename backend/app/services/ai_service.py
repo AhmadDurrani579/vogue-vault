@@ -14,10 +14,10 @@ class AIService:
             print("[AI] No OPENAI_API_KEY — running in stub mode")
 
     def get_verdict(self, garments: list, similar_outfits: list, occasion: str) -> dict:
+        """Generate outfit verdict using RAG context from pgvector results"""
         print(f"[AI] get_verdict called — client: {self.client is not None}")
         print(f"[AI] Garments: {len(garments)}, Similar: {len(similar_outfits)}")
 
-        """Generate outfit verdict using RAG context from pgvector results"""
         if not self.client:
             print("[AI] No client — returning stub")
             return self._stub_verdict()
@@ -25,7 +25,6 @@ class AIService:
         try:
             prompt = f"""
 You are a professional fashion stylist AI. Diagnose this outfit.
-
 DETECTED GARMENTS: {json.dumps(garments)}
 OCCASION: {occasion}
 SIMILAR OUTFITS FROM DATABASE (real data): {json.dumps(similar_outfits[:10])}
@@ -39,26 +38,26 @@ Based on the garments and similar outfit data above, return ONLY this JSON:
   "fix": "<one specific actionable fix>",
   "rag_insight": "<insight from the similar outfits data>"
 }}
-
 Be specific. Use the similar outfits data to back up your diagnosis.
 Return ONLY the JSON. No extra text.
             """
 
+            print("[AI] Calling OpenAI...")
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 max_tokens=500
             )
-
+            print("[AI] OpenAI response received!")
             verdict = json.loads(response.choices[0].message.content)
+            print(f"[AI] Verdict: {verdict}")
 
-            # Agentic self-check
             verdict = self._self_check(verdict, similar_outfits, garments)
             return verdict
 
         except Exception as e:
-            print(f"[AI] Verdict failed: {e}")
+            print(f"[AI] Verdict FAILED: {type(e).__name__}: {e}")
             return self._stub_verdict()
 
     def _self_check(self, verdict: dict, similar_outfits: list, garments: list) -> dict:
@@ -69,7 +68,6 @@ Return ONLY the JSON. No extra text.
         try:
             prompt = f"""
 You are reviewing a fashion diagnosis for accuracy.
-
 ORIGINAL DIAGNOSIS: {json.dumps(verdict)}
 GARMENTS: {json.dumps(garments)}
 SIMILAR OUTFITS DATA: {json.dumps(similar_outfits[:5])}
@@ -84,17 +82,19 @@ If you corrected anything add "verified": false, "corrected": true.
 Return ONLY JSON.
             """
 
+            print("[AI] Self-check calling OpenAI...")
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 max_tokens=500
             )
-
-            return json.loads(response.choices[0].message.content)
+            result = json.loads(response.choices[0].message.content)
+            print(f"[AI] Self-check result: {result}")
+            return result
 
         except Exception as e:
-            print(f"[AI] Self-check failed: {e}")
+            print(f"[AI] Self-check FAILED: {type(e).__name__}: {e}")
             return {**verdict, "verified": True}
 
     def _stub_verdict(self) -> dict:
