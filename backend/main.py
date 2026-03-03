@@ -55,5 +55,13 @@ async def test_search():
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/debug")
+async def debug():
+    return {
+        "openai_key_set": bool(settings.OPENAI_API_KEY),
+        "openai_key_length": len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0,
+        "db_url_set": bool(settings.DATABASE_URL),
+    }
+
 app.include_router(analyze.router)
 app.include_router(websocket.router)
