@@ -47,10 +47,13 @@ async def startup_event():
     app.state.ai          = AIService()
   
 @app.get("/test-search")
-def test_search():
-    dummy = [0.1] * 512
-    results = app.state.db.search_similar(dummy, "casual")
-    return {"count": len(results), "results": results[:2]}
+async def test_search():
+    try:
+        dummy = [0.1] * 512
+        results = await app.state.db.search_similar(dummy, "casual")
+        return {"count": len(results), "results": results[:2]}
+    except Exception as e:
+        return {"error": str(e)}
 
 app.include_router(analyze.router)
 app.include_router(websocket.router)
