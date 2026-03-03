@@ -69,7 +69,7 @@ async def test_openai():
         from openai import OpenAI
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": "Say hello in JSON with key 'message'"}],
             response_format={"type": "json_object"},
             max_tokens=50

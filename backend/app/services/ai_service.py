@@ -44,7 +44,7 @@ Return ONLY the JSON. No extra text.
 
             print("[AI] Calling OpenAI...")
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 max_tokens=500
@@ -84,7 +84,7 @@ Return ONLY JSON.
 
             print("[AI] Self-check calling OpenAI...")
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 max_tokens=500
