@@ -49,7 +49,7 @@ async def websocket_endpoint(websocket: WebSocket):
             
             # FIX: Only use 'await' if your get_verdict is 'async def'
             # If it is a regular 'def', remove the 'await' keyword below
-            verdict = await ai.get_verdict(detected, similar, occasion)
+            verdict =  ai.get_verdict(detected, similar, occasion)
 
             await websocket.send_json({
                 "step": 3, "status": "done", 
