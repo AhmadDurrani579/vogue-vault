@@ -7,6 +7,7 @@ from app.core.ai_engine import FashionCLIPEngine
 from app.services.db_service import DBService
 from app.routers import analyze, websocket
 from app.core.config import settings
+from app.services.ai_service import AIService
 
 app = FastAPI(title="VogueVault")
 
@@ -30,6 +31,12 @@ def health():
 def test_db():
     results = app.state.db.search_similar([0.1] * 512, "casual")
     return {"results": results}
+    
+@app.on_event("startup")
+async def startup_event():
+    app.state.clip_engine = FashionCLIPEngine(settings.MODEL_ID)
+    app.state.db          = DBService()
+    app.state.ai          = AIService()
 
 app.include_router(analyze.router)
 app.include_router(websocket.router)
