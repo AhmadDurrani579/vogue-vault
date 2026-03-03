@@ -32,12 +32,12 @@ class DBService:
             """, (garments, embedding, occasion, score, tags, image_url))
 
     async def search_similar(self, embedding: list, occasion: str, limit: int = 20):
-        """Search for similar outfits using cosine similarity (1 - distance)"""
+        """Search for similar outfits with explicit type casting"""
         await self.connect()
         async with self.conn.cursor() as cur:
             await cur.execute("""
                 SELECT garments, score, tags, image_url,
-                       1 - (embedding <=> %s) AS similarity
+                    1 - (embedding <=> %s::vector) AS similarity
                 FROM   indexed_outfits
                 WHERE  occasion = %s
                 ORDER  BY similarity DESC
