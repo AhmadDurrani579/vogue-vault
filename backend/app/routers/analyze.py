@@ -71,7 +71,7 @@ async def analyze_full(
     similar = await db.search_similar(embedding, occasion)
 
     # Step 3: OpenAI verdict + self-check
-    verdict = await ai.get_verdict(detected, similar, occasion)
+    verdict =  ai.get_verdict(detected, similar, occasion)
 
     return {
         "status":   "success",
