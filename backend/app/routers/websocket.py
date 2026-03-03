@@ -25,8 +25,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
                 
             data = await websocket.receive_json()
-            occasion = data.get("occasion")
-
+            occasion = data.get("occasion", "casual")
+            
             # Helper function to send safely
             async def safe_send(payload):
                 if websocket.client_state == WebSocketState.CONNECTED:
