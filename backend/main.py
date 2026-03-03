@@ -66,14 +66,17 @@ async def debug():
 @app.get("/test-openai")
 async def test_openai():
     try:
-        ai = app.state.ai
-        result = ai.get_verdict(
-            garments=[{"garment": "leather jacket", "confidence": 0.3}],
-            similar_outfits=[],
-            occasion="casual"
+        from openai import OpenAI
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Say hello in JSON with key 'message'"}],
+            response_format={"type": "json_object"},
+            max_tokens=50
         )
-        return {"status": "success", "verdict": result}
+        return {"status": "success", "response": response.choices[0].message.content}
     except Exception as e:
-        return {"status": "error", "error": f"{type(e).__name__}: {str(e)}"}
+        return {"status": "error", "error": f"{type(e).__name__}: {str(e)}"}    
+
 app.include_router(analyze.router)
 app.include_router(websocket.router)
