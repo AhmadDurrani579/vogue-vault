@@ -73,19 +73,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # ── Step 4: Agentic self-check ───────────────
             await websocket.send_json({
-                "step":   4, "status": "done",
-                "label":  "Double-checking the findings",
+                "step": 4, 
+                "status": "done", # Added this
+                "label": "Double-checking the findings",
                 "detail": "Verified" if verdict.get("verified") else "Corrected"
             })
-
             # ── Step 5: Final verdict ────────────────────
             await websocket.send_json({
-                "step":    5, "status": "done",
-                "type":    "complete",
-                "label":   "Your diagnosis is ready",
+                "step": 5, 
+                "status": "complete", # Changed from 'done' for clarity
+                "type": "complete",
+                "label": "Your diagnosis is ready",
                 "verdict": verdict
             })
-
     except WebSocketDisconnect:
         pass
     except Exception as e:
