@@ -61,7 +61,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
     setLoadingFix(false);
   };
 
-  const handleVisualFix = async () => {
+  const handleVisualFix: () => void = async () => {
     setShowVisual(true);
     if (visualImage) return; // already loaded
     setLoadingVisual(true);
@@ -82,7 +82,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
       console.error("Visualise fix failed:", e);
     }
     setLoadingVisual(false);
-};
+  };
 
 
   return (
@@ -154,6 +154,12 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
                 <p className="text-xs font-bold text-[#1a1820] mb-1">{verdict.fix}</p>
                 <p className="text-[10px] text-[#28A745] font-bold">↑ +{pointsGain} points · Fixes the main issue</p>
               </div>
+                <button
+                  onClick={handleVisualFix}
+                  className="ml-9 mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#C8882A] hover:text-[#e8a840] transition-colors">
+                  <Sparkles size={11} /> Visualise This Fix
+                </button> 
+
             </div>
 
             {/* Card 2 — Amber */}
