@@ -28,6 +28,13 @@ export function useAnalysis() {
   const startTimeRef      = useRef<number>(0);
   const previewRef        = useRef<string>("");
   const occasionRef       = useRef<string>("casual");
+  const screenRef         = useRef<Screen>("upload"); // ← fixes stale closure
+
+  // Always update both state and ref together
+  const updateScreen = (s: Screen) => {
+    screenRef.current = s;
+    setScreen(s);
+  };
 
   const updateStep = (stepNum: number, status: PipelineStep["status"], detail?: string) => {
     setSteps(prev => prev.map(s => s.step === stepNum ? { ...s, status, detail } : s));
@@ -71,11 +78,9 @@ export function useAnalysis() {
       }
 
       if (data.type === "complete" && data.verdict) {
-        // Track diagnosis time
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
         setDiagnosisTime(elapsed);
 
-        // Save to localStorage for Recent Diagnoses
         saveDiagnosis({
           imagePreview: previewRef.current,
           score:        data.verdict.score,
@@ -90,7 +95,7 @@ export function useAnalysis() {
           verdict:  data.verdict!
         });
 
-        setTimeout(() => setScreen("results"), 2000);
+        setTimeout(() => updateScreen("results"), 2000);
         ws.close();
       }
     };
@@ -99,11 +104,19 @@ export function useAnalysis() {
       clearTimeout(timeout);
       console.error("[WS] Error:", e);
     };
+
+    ws.onclose = (event) => {
+      clearTimeout(timeout);
+      if (event.code !== 1000 && screenRef.current !== "results") {
+        console.log(`[WS] Closed abnormally (${event.code}: ${event.reason}) — reconnecting in 2s...`);
+        setTimeout(() => connectWebSocket(imageBase64, occasion), 2000);
+      }
+    };
   };
 
   const analyze = useCallback(async (imageBase64: string, occasion: string, preview: string) => {
     setImagePreview(preview);
-    setScreen("analyzing");
+    updateScreen("analyzing");
     setSteps(INITIAL_STEPS);
     setResult(null);
     setDetectedGarments([]);
@@ -129,7 +142,7 @@ export function useAnalysis() {
 
   const reset = useCallback(() => {
     wsRef.current?.close();
-    setScreen("upload");
+    updateScreen("upload");
     setSteps(INITIAL_STEPS);
     setResult(null);
     setImagePreview(null);
