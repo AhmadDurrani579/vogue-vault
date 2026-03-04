@@ -8,7 +8,7 @@ class AIService:
     def __init__(self):
         self.client = None
         self._cache: dict = {}
-        self._cache_version = "v2"  # ← bump this to invalidate old cache
+        self._cache_version = "v3"  # ← bump this to invalidate old cache
         
         if settings.OPENAI_API_KEY:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
