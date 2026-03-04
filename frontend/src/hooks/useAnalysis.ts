@@ -29,6 +29,7 @@ export function useAnalysis() {
   const previewRef        = useRef<string>("");
   const occasionRef       = useRef<string>("casual");
   const screenRef         = useRef<Screen>("upload"); // ← fixes stale closure
+  const savedRef = useRef<boolean>(false);
 
   // Always update both state and ref together
   const updateScreen = (s: Screen) => {
@@ -78,16 +79,21 @@ export function useAnalysis() {
       }
 
       if (data.type === "complete" && data.verdict) {
-        const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        setDiagnosisTime(elapsed);
+        // ← Only save once
+        if (!savedRef.current) {
+          savedRef.current = true;
+          
+          const elapsed = (Date.now() - startTimeRef.current) / 1000;
+          setDiagnosisTime(elapsed);
 
-        saveDiagnosis({
-          imagePreview: previewRef.current,
-          score:        data.verdict.score,
-          fix:          data.verdict.fix,
-          occasion:     occasionRef.current,
-          timestamp:    Date.now()
-        });
+          saveDiagnosis({
+            imagePreview: previewRef.current,
+            score:        data.verdict.score,
+            fix:          data.verdict.fix,
+            occasion:     occasionRef.current,
+            timestamp:    Date.now()
+          });
+        }
 
         setResult({
           garments: garmentsRef.current,
@@ -132,7 +138,7 @@ export function useAnalysis() {
     previewRef.current        = preview;
     occasionRef.current       = occasion;
     startTimeRef.current      = Date.now();
-
+    savedRef.current          = false; 
     try {
       console.log("[WS] Waking up server...");
       await fetch(HEALTH_URL);
@@ -147,6 +153,7 @@ export function useAnalysis() {
 
   const reset = useCallback(() => {
     wsRef.current?.close();
+    savedRef.current = false
     updateScreen("upload");
     setSteps(INITIAL_STEPS);
     setResult(null);
