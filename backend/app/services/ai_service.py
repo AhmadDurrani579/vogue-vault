@@ -50,23 +50,23 @@ class AIService:
                 for s in similar_outfits[:5]
             ]
 
-            prompt = f"""You are a professional fashion stylist. Score this outfit fairly.
+            prompt = f"""You are a professional fashion stylist scoring an outfit.
 
-            SCORING GUIDE:
-            - 70-85: decent everyday outfit with minor issues
-            - 50-70: needs one clear fix
-            - 30-50: multiple issues
-            - Below 30: only for truly terrible combinations
+            IMPORTANT SCORING RULES:
+            - Score the STYLE of the outfit, NOT the detection confidence
+            - A plain shirt + jeans is a 65-75 score minimum
+            - Most real outfits score between 55-80
+            - Only score below 50 for genuinely clashing combinations
+            - Similar outfits in memory scoring 79-86 means this outfit should score similarly
 
-            GARMENTS: {json.dumps(slim_garments)}
+            GARMENTS DETECTED: {json.dumps([g["garment"] for g in garments[:5]])}
             OCCASION: {occasion}
-            SIMILAR OUTFITS: {json.dumps(slim_similar)}
+            SIMILAR OUTFITS (these scored well — use as reference): {json.dumps(slim_similar)}
 
             Return ONLY this JSON:
-            {{"score": <realistic 0-100, rarely below 40>, "score_with_fix": <score + 10-25 points max>, "summary": "<one line>", "primary_issue": "<main problem>", "fix": "<one specific fix>", "rag_insight": "<one insight from similar outfits>"}}
+            {{"score": <50-85 for normal outfits>, "score_with_fix": <score + 10-20>, "summary": "<one line>", "primary_issue": "<specific style issue>", "fix": "<one specific actionable fix>", "rag_insight": "<insight from similar outfits>"}}
 
-            Be fair — most outfits score 50-80. Only extreme cases go below 40."""
-
+            A white patterned shirt is a solid casual piece — score it fairly."""
             print("[AI] Calling OpenAI...")
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
