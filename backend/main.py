@@ -1,4 +1,8 @@
 import os
+import sys
+import logging
+
+os.environ["PYTHONUNBUFFERED"] = "1"
 os.environ["HF_HOME"] = "/home/user/app/cache"
 
 from fastapi import FastAPI
@@ -8,6 +12,13 @@ from app.services.db_service import DBService
 from app.routers import analyze, websocket
 from app.core.config import settings
 from app.services.ai_service import AIService
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)] # Force to HF console
+)
+logger = logging.getLogger("voguevault")
 
 app = FastAPI(title="VogueVault")
 
@@ -20,15 +31,16 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("Starting VogueVault services...") # Use logger
     try:
         app.state.clip_engine = FashionCLIPEngine(settings.MODEL_ID)
         app.state.db          = DBService()
         await app.state.db.connect()
         app.state.ai          = AIService()
-        print("[Startup] All services ready!")
+        logger.info("All services ready and connected!") #
     except Exception as e:
-        print(f"[Startup ERROR] {e}")
-        raise
+        logger.error(f"Startup ERROR: {str(e)}", exc_info=True) #
+
 
 @app.get("/")
 def health():
