@@ -32,7 +32,11 @@ async def websocket_endpoint(websocket: WebSocket):
             if data.get("type") == "ping":
                 await safe_send({"type": "pong"})
                 continue
-
+            
+            if not data.get("image"):
+                print("[WS] No image in message — skipping")
+                continue
+            
             occasion = data.get("occasion", "casual")
 
             # ── Decode + validate image
