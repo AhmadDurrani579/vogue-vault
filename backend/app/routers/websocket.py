@@ -35,10 +35,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
             occasion = data.get("occasion", "casual")
 
-            # ── Decode + resize image immediately
-            image_bytes = base64.b64decode(data.get("image"))
-            image       = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-            image.thumbnail((512, 512), Image.LANCZOS)  # resize before anything
+            # ── Decode + validate image
+            try:
+                raw = data.get("image", "")
+                if not raw:
+                    await safe_send({"type": "error", "message": "Empty image"})
+                    continue
+                image_bytes = base64.b64decode(raw)
+                if not image_bytes:
+                    await safe_send({"type": "error", "message": "Empty image bytes"})
+                    continue
+                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                image.thumbnail((512, 512), Image.LANCZOS)
+            except Exception as e:
+                print(f"[WS] Image decode error: {e}")
+                await safe_send({"type": "error", "message": "Invalid image — please try again"})
+                continue
 
             # ── Check full cache (image hash + occasion)
             image_hash = hashlib.md5(image_bytes).hexdigest()
@@ -47,7 +59,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if cache_key in cache:
                 print(f"[CACHE] Full hit — {cache_key[:8]}")
                 cached = cache[cache_key]
-    
+
                 # Step 1 — send garments so frontend populates LeftCameraPanel
                 await safe_send({"step": 1, "status": "active", "label": "Looking at what you're wearing"})
                 await safe_send({
@@ -127,7 +139,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "detail": verdict.get("summary", "")
             })
 
-            # ── Step 4: Verified (no second OpenAI call)
+            # ── Step 4: Verified
             await safe_send({"step": 4, "status": "active", "label": "Double-checking the findings"})
             await safe_send({
                 "step":   4,

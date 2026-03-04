@@ -2,14 +2,14 @@ import json
 import hashlib
 from openai import OpenAI
 from app.core.config import settings
+import time
 
 class AIService:
 
     def __init__(self):
         self.client = None
         self._cache: dict = {}
-        self._cache_version = "v3"  # ← bump this to invalidate old cache
-        
+        self._cache_version = str(int(time.time()))  # ← bump this to invalidate old cache
         if settings.OPENAI_API_KEY:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
             print("[AI] OpenAI connected!")
@@ -72,7 +72,7 @@ class AIService:
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
-                max_tokens=200  # was 500 — verdict is short
+                max_tokens=300  # was 500 — verdict is short
             )
             
             verdict = json.loads(response.choices[0].message.content)
