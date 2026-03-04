@@ -44,7 +44,7 @@ class CLIPService:
         detected = [
             {"garment": self.labels[i], "confidence": round(scores[i].item(), 3)}
             for i in range(len(self.labels))
-            if scores[i].item() >  0.03
+            if scores[i].item() >  0.08
         ]
         detected.sort(key=lambda x: x["confidence"], reverse=True)
         

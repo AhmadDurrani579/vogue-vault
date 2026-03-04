@@ -49,24 +49,22 @@ class AIService:
                 }
                 for s in similar_outfits[:5]
             ]
+            prompt = f"""You are a professional fashion stylist. Score this outfit honestly.
 
-            prompt = f"""You are a professional fashion stylist scoring an outfit.
-
-            IMPORTANT SCORING RULES:
-            - Score the STYLE of the outfit, NOT the detection confidence
-            - A plain shirt + jeans is a 65-75 score minimum
-            - Most real outfits score between 55-80
-            - Only score below 50 for genuinely clashing combinations
-            - Similar outfits in memory scoring 79-86 means this outfit should score similarly
-
-            GARMENTS DETECTED: {json.dumps([g["garment"] for g in garments[:5]])}
+            GARMENTS: {json.dumps([g["garment"] for g in garments[:5]])}
             OCCASION: {occasion}
-            SIMILAR OUTFITS (these scored well — use as reference): {json.dumps(slim_similar)}
+            REFERENCE OUTFITS: {json.dumps(slim_similar)}
 
-            Return ONLY this JSON:
-            {{"score": <50-85 for normal outfits>, "score_with_fix": <score + 10-20>, "summary": "<one line>", "primary_issue": "<specific style issue>", "fix": "<one specific actionable fix>", "rag_insight": "<insight from similar outfits>"}}
+            SCORING:
+            - 75-90: well coordinated, clear style
+            - 55-74: decent but one thing off
+            - 40-54: multiple issues
+            - Below 40: genuinely bad combination
 
-            A white patterned shirt is a solid casual piece — score it fairly."""
+            If no clear outfit is detected, return score: 0 with summary: "No outfit detected"
+
+            Return ONLY JSON:
+            {{"score": <0-100>, "score_with_fix": <score+10-20>, "summary": "<one line>", "primary_issue": "<specific issue or none>", "fix": "<specific fix or none>", "rag_insight": "<insight>"}}"""
             print("[AI] Calling OpenAI...")
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
