@@ -10,16 +10,20 @@ HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-dif
 
 @router.post("/visualise-fix")
 async def visualise_fix(request: Request, data: dict):
-    image_b64  = data.get("image")       # base64 image from frontend
-    fix_text   = data.get("fix")         # e.g. "Swap white sneakers for chelsea boots"
-    garment    = data.get("garment")     # e.g. "white sneakers"
+    image_b64 = data.get("image")
+    fix_text  = data.get("fix")
+    garment   = data.get("garment")
 
-    if not image_b64 or not fix_text:
-        return {"error": "Missing image or fix text"}
+    if not fix_text:
+        return {"status": "error", "message": "Missing fix text"}
 
-    # Build prompt from fix
     prompt          = f"fashion photo, {fix_text}, high quality, realistic, same person same pose"
     negative_prompt = "blurry, distorted, low quality, deformed"
+
+    # Check token
+    if not settings.HF_TOKEN:
+        print("[VISUALISE] ERROR — HF_TOKEN not set!")
+        return {"status": "error", "message": "HF_TOKEN not configured"}
 
     headers = {
         "Authorization": f"Bearer {settings.HF_TOKEN}",
@@ -27,35 +31,41 @@ async def visualise_fix(request: Request, data: dict):
     }
 
     payload = {
-        "inputs":     prompt,
+        "inputs": prompt,
         "parameters": {
-            "negative_prompt":    negative_prompt,
+            "negative_prompt":     negative_prompt,
             "num_inference_steps": 20,
             "guidance_scale":      7.5,
         }
-    }  
+    }
 
     try:
-        print(f"[VISUALISE] Calling HF API — prompt: {prompt[:60]}")
+        print(f"[VISUALISE] Calling HF API — token set: {bool(settings.HF_TOKEN)}")
+        print(f"[VISUALISE] Prompt: {prompt[:80]}")
+
         async with httpx.AsyncClient(timeout=120) as http:
             res = await http.post(HF_API_URL, headers=headers, json=payload)
 
+        print(f"[VISUALISE] Response status: {res.status_code}")
+        print(f"[VISUALISE] Response body: {res.text[:300]}")
+
         if res.status_code == 200:
-            # HF returns raw image bytes
-            image_bytes  = res.content
-            result_b64   = base64.b64encode(image_bytes).decode("utf-8")
+            image_bytes = res.content
+            result_b64  = base64.b64encode(image_bytes).decode("utf-8")
             print("[VISUALISE] Success!")
             return {
                 "status":       "success",
                 "result_image": f"data:image/png;base64,{result_b64}"
             }
         elif res.status_code == 503:
-            # Model loading — tell frontend to retry
             return {"status": "loading", "message": "Model warming up, retry in 20s"}
         else:
-            print(f"[VISUALISE] HF API error: {res.status_code} {res.text}")
-            return {"status": "error", "message": "Visualisation failed"}
+            return {
+                "status":  "error",
+                "message": f"HF API {res.status_code}",
+                "detail":  res.text[:300]
+            }
 
     except Exception as e:
-        print(f"[VISUALISE] Exception: {e}")
-        return {"status": "error", "message": str(e)}
+        print(f"[VISUALISE] Exception: {type(e).__name__}: {e}")
+        return {"status": "error", "message": f"{type(e).__name__}: {str(e)}"}
