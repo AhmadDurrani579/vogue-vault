@@ -6,7 +6,7 @@ from app.core.config import settings
 
 router = APIRouter()
 
-HF_API_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/stable-diffusion-v1-5/stable-diffusion-v1-5"
 
 @router.post("/visualise-fix")
 async def visualise_fix(request: Request, data: dict):
@@ -31,12 +31,7 @@ async def visualise_fix(request: Request, data: dict):
     }
 
     payload = {
-        "inputs": prompt,
-        "parameters": {
-            "negative_prompt":     negative_prompt,
-            "num_inference_steps": 20,
-            "guidance_scale":      7.5,
-        }
+        "inputs": f"professional fashion photo of {fix_text}, white background, studio lighting, high quality"
     }
 
     try:
