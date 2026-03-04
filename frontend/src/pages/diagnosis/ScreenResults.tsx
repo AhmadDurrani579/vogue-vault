@@ -71,7 +71,8 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
           fix:     verdict.fix,
-          garment: verdict.primary_issue
+          garment: verdict.primary_issue,
+          occasion: "casual"  
         })
       });
       const data = await res.json();
