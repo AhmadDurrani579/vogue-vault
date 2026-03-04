@@ -47,26 +47,43 @@ async def websocket_endpoint(websocket: WebSocket):
             if cache_key in cache:
                 print(f"[CACHE] Full hit — {cache_key[:8]}")
                 cached = cache[cache_key]
-
-                # Stream steps instantly from cache
-                for step_num, label in [
-                    (1, "Looking at what you're wearing"),
-                    (2, "Searching 5,000 similar outfits"),
-                    (3, "Analysing your outfit"),
-                    (4, "Double-checking the findings"),
-                    (5, "Writing your verdict"),
-                ]:
-                    await safe_send({"step": step_num, "status": "active", "label": label})
-                    await safe_send({"step": step_num, "status": "done",   "label": label})
-
+    
+                # Step 1 — send garments so frontend populates LeftCameraPanel
+                await safe_send({"step": 1, "status": "active", "label": "Looking at what you're wearing"})
                 await safe_send({
-                    "type":    "complete",
+                    "step":     1,
+                    "status":   "done",
+                    "label":    "Looking at what you're wearing",
+                    "detail":   f"{len(cached['garments'])} garments identified",
+                    "garments": cached["garments"]
+                })
+
+                # Step 2 — send matches so VisualMemoryPanel populates
+                await safe_send({"step": 2, "status": "active", "label": "Searching 5,000 similar outfits"})
+                await safe_send({
+                    "step":    2,
+                    "status":  "done",
+                    "label":   "Searching 5,000 similar outfits",
+                    "detail":  f"{len(cached['matches'])} matches found",
+                    "matches": cached["matches"]
+                })
+
+                # Steps 3-5
+                await safe_send({"step": 3, "status": "active", "label": "Analysing your outfit"})
+                await safe_send({"step": 3, "status": "done",   "label": "Analysing your outfit", "detail": cached["verdict"].get("summary", "")})
+
+                await safe_send({"step": 4, "status": "active", "label": "Double-checking the findings"})
+                await safe_send({"step": 4, "status": "done",   "label": "Double-checking the findings", "detail": "Verified ✓"})
+
+                await safe_send({"step": 5, "status": "active", "label": "Writing your verdict"})
+                await safe_send({
                     "step":    5,
                     "status":  "done",
+                    "type":    "complete",
                     "label":   "Writing your verdict",
+                    "detail":  cached["verdict"].get("fix", ""),
                     "verdict": cached["verdict"],
-                    "matches": cached["matches"],
-                    "garments": cached["garments"],
+                    "matches": cached["matches"]
                 })
                 continue
 
