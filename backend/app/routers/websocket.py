@@ -36,7 +36,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if not data.get("image"):
                 print("[WS] No image in message — skipping")
                 continue
-            
+
             occasion = data.get("occasion", "casual")
 
             # ── Decode + validate image
@@ -45,17 +45,30 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not raw:
                     await safe_send({"type": "error", "message": "Empty image"})
                     continue
+                
+                # Strip data URL prefix if present (data:image/jpeg;base64,...)
+                if "," in raw:
+                    raw = raw.split(",")[1]
+                
                 image_bytes = base64.b64decode(raw)
                 if not image_bytes:
                     await safe_send({"type": "error", "message": "Empty image bytes"})
                     continue
-                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                
+                # Try PIL open with format fallback
+                try:
+                    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                except Exception:
+                    # Try treating as JPEG explicitly
+                    from PIL import JpegImagePlugin
+                    image = Image.frombytes("RGB", (224, 224), image_bytes)
+                
                 image.thumbnail((512, 512), Image.LANCZOS)
+
             except Exception as e:
                 print(f"[WS] Image decode error: {e}")
                 await safe_send({"type": "error", "message": "Invalid image — please try again"})
                 continue
-
             # ── Check full cache (image hash + occasion)
             image_hash = hashlib.md5(image_bytes).hexdigest()
             cache_key  = f"{image_hash}_{occasion}"
