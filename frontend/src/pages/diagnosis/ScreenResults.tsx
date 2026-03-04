@@ -41,7 +41,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
               </span>
             </h1>
             <p className="text-[#1a1820]/60 text-base leading-relaxed max-w-xl">
-              {verdict.summary} {verdict.rag_insight}.
+              {verdict.summary} {verdict.rag_insight.replace(/\.+$/, '')}
             </p>
           </header>
 
