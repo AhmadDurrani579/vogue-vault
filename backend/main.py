@@ -12,6 +12,7 @@ from app.services.db_service import DBService
 from app.routers import analyze, websocket, magic_fix
 from app.core.config import settings
 from app.services.ai_service import AIService
+from app.routers import analyze, websocket, magic_fix, visualise_fix
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,3 +77,4 @@ async def test_openai():
 app.include_router(analyze.router)
 app.include_router(websocket.router)
 app.include_router(magic_fix.router)
+app.include_router(visualise_fix.router)
