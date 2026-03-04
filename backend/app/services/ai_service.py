@@ -7,7 +7,8 @@ class AIService:
 
     def __init__(self):
         self.client = None
-        self._cache: dict = {}  # in-memory cache
+        self._cache: dict = {}
+        self._cache_version = "v2"  # ← bump this to invalidate old cache
         
         if settings.OPENAI_API_KEY:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -18,7 +19,7 @@ class AIService:
     def _make_cache_key(self, garments: list, occasion: str) -> str:
         """Cache key from garment names + occasion — same outfit = same key"""
         garment_names = sorted([g["garment"] for g in garments[:5]])
-        raw = f"{'-'.join(garment_names)}_{occasion.lower()}"
+        raw = f"{self._cache_version}_{'-'.join(garment_names)}_{occasion.lower()}"
         return hashlib.md5(raw.encode()).hexdigest()
 
     def get_verdict(self, garments: list, similar_outfits: list, occasion: str) -> dict:
@@ -49,13 +50,22 @@ class AIService:
                 for s in similar_outfits[:5]
             ]
 
-            prompt = f"""Fashion stylist AI. Diagnose this outfit.
-GARMENTS: {json.dumps(slim_garments)}
-OCCASION: {occasion}
-SIMILAR OUTFITS: {json.dumps(slim_similar)}
+            prompt = f"""You are a professional fashion stylist. Score this outfit fairly.
 
-Return ONLY this JSON:
-{{"score": <0-100>, "score_with_fix": <0-100>, "summary": "<one line>", "primary_issue": "<main problem>", "fix": "<one specific fix>", "rag_insight": "<one insight from similar outfits>"}}"""
+            SCORING GUIDE:
+            - 70-85: decent everyday outfit with minor issues
+            - 50-70: needs one clear fix
+            - 30-50: multiple issues
+            - Below 30: only for truly terrible combinations
+
+            GARMENTS: {json.dumps(slim_garments)}
+            OCCASION: {occasion}
+            SIMILAR OUTFITS: {json.dumps(slim_similar)}
+
+            Return ONLY this JSON:
+            {{"score": <realistic 0-100, rarely below 40>, "score_with_fix": <score + 10-25 points max>, "summary": "<one line>", "primary_issue": "<main problem>", "fix": "<one specific fix>", "rag_insight": "<one insight from similar outfits>"}}
+
+            Be fair — most outfits score 50-80. Only extreme cases go below 40."""
 
             print("[AI] Calling OpenAI...")
             response = self.client.chat.completions.create(
