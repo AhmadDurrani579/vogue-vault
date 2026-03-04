@@ -44,9 +44,19 @@ class CLIPService:
         detected = [
             {"garment": self.labels[i], "confidence": round(scores[i].item(), 3)}
             for i in range(len(self.labels))
-            if scores[i].item() > 0.05
+            if scores[i].item() >  0.03
         ]
         detected.sort(key=lambda x: x["confidence"], reverse=True)
+        
+        # Ensure minimum 3 garments always returned
+        if len(detected) < 3:
+            # Take top 3 regardless of threshold
+            all_scores = [
+                {"garment": self.labels[i], "confidence": round(scores[i].item(), 3)}
+                for i in range(len(self.labels))
+            ]
+            all_scores.sort(key=lambda x: x["confidence"], reverse=True)
+            detected = all_scores[:3]
 
         # ── Keep top 6 only — no need to send 30 garments to OpenAI
         detected = detected[:6]
