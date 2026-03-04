@@ -50,13 +50,6 @@ def health():
 def test_db():
     results = app.state.db.search_similar([0.1] * 512, "casual")
     return {"results": results}
-    
-@app.on_event("startup")
-async def startup_event():
-    app.state.clip_engine = FashionCLIPEngine(settings.MODEL_ID)
-    app.state.db          = DBService()
-    await app.state.db.connect()
-    app.state.ai          = AIService()
   
 @app.get("/test-search")
 async def test_search():
