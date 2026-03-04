@@ -108,7 +108,12 @@ export function useAnalysis() {
     ws.onclose = (event) => {
       clearTimeout(timeout);
       if (event.code !== 1000 && screenRef.current !== "results") {
-        console.log(`[WS] Closed abnormally (${event.code}: ${event.reason}) — reconnecting in 2s...`);
+        // Only reconnect if we have valid image data
+        if (!imageBase64 || imageBase64.length < 100) {
+          console.log("[WS] No valid image — skipping reconnect");
+          return;
+        }
+        console.log(`[WS] Reconnecting in 2s...`);
         setTimeout(() => connectWebSocket(imageBase64, occasion), 2000);
       }
     };
