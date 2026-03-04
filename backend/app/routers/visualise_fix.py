@@ -33,7 +33,7 @@ async def visualise_fix(request: Request, data: dict):
             "num_inference_steps": 20,
             "guidance_scale":      7.5,
         }
-    } 
+    }  
 
     try:
         print(f"[VISUALISE] Calling HF API — prompt: {prompt[:60]}")
