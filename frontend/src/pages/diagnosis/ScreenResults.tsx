@@ -32,6 +32,10 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
   const [products, setProducts]       = useState<Product[]>([]);
   const [fixError, setFixError]       = useState<string | null>(null);
 
+  const [visualImage, setVisualImage]     = useState<string | null>(null);
+  const [loadingVisual, setLoadingVisual] = useState(false);
+  const [showVisual, setShowVisual]       = useState(false);
+
   const scoreColor = verdict.score >= 80 ? "#28A745" :
                      verdict.score >= 60 ? "#C5A267" : "#D0021B";
 
@@ -56,6 +60,30 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
     }
     setLoadingFix(false);
   };
+
+  const handleVisualFix = async () => {
+    setShowVisual(true);
+    if (visualImage) return; // already loaded
+    setLoadingVisual(true);
+    try {
+      const res = await fetch(`${BACKEND}/visualise-fix`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          fix:     verdict.fix,
+          garment: verdict.primary_issue
+        })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setVisualImage(data.result_image);
+      }
+    } catch (e) {
+      console.error("Visualise fix failed:", e);
+    }
+    setLoadingVisual(false);
+};
+
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#fcfaf7] font-sans overflow-hidden">
@@ -281,6 +309,59 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
                     </div>
                   ))}
                 </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showVisual && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm">
+          <div className="bg-white rounded-t-3xl w-full max-w-2xl shadow-2xl">
+            
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-[#EEEAE5] px-8 py-5 flex justify-between items-center rounded-t-3xl">
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.3em] font-bold text-[#C5A267]">— AI Visualisation</div>
+                <h2 className="font-serif text-2xl text-[#1a1820]">🪄 Your Fix Applied</h2>
+              </div>
+              <button onClick={() => setShowVisual(false)}
+                className="w-8 h-8 rounded-full bg-[#f0ece8] flex items-center justify-center hover:bg-[#e2ddd6]">
+                <X size={14} className="text-[#1a1820]" />
+              </button>
+            </div>
+
+            <div className="px-8 py-6">
+              {loadingVisual ? (
+                <div className="flex flex-col items-center py-12 gap-4">
+                  <div className="animate-spin w-10 h-10 border-2 border-[#c8882a] border-t-transparent rounded-full" />
+                  <p className="text-sm text-[#1a1820]/40">Generating your fix visualisation...</p>
+                  <p className="text-[10px] text-[#1a1820]/20">This takes 10-20 seconds</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-[#1a1820]/50">
+                    Suggested: <span className="font-semibold text-[#1a1820]">{verdict.fix}</span>
+                  </p>
+                  {/* Before / After */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <p className="text-[9px] uppercase tracking-widest font-bold text-[#1a1820]/30">Before</p>
+                      <div className="aspect-square rounded-2xl overflow-hidden border border-[#EEEAE5]">
+                        <img src={imagePreview!} alt="before" className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[9px] uppercase tracking-widest font-bold text-[#28A745]">Suggested Item</p>
+                      <div className="aspect-square rounded-2xl overflow-hidden border border-[#EEEAE5]">
+                        {visualImage && <img src={visualImage} alt="suggested fix" className="w-full h-full object-cover" />}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[#1a1820]/30 text-center">
+                    AI-generated suggestion — actual results may vary
+                  </p>
+                </div>
               )}
             </div>
           </div>
