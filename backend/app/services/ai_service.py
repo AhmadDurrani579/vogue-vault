@@ -16,13 +16,13 @@ class AIService:
         else:
             print("[AI] No OPENAI_API_KEY — running in stub mode")
 
-    def _make_cache_key(self, garments: list, occasion: str) -> str:
-        """Cache key from garment names + occasion — same outfit = same key"""
+    def _make_cache_key(self, garments: list, occasion: str, image_hash: str = "") -> str:
         garment_names = sorted([g["garment"] for g in garments[:5]])
-        raw = f"{self._cache_version}_{'-'.join(garment_names)}_{occasion.lower()}"
+        raw = f"{self._cache_version}_{image_hash}_{'-'.join(garment_names)}_{occasion.lower()}"
         return hashlib.md5(raw.encode()).hexdigest()
 
-    def get_verdict(self, garments: list, similar_outfits: list, occasion: str) -> dict:
+    def get_verdict(self, garments: list, similar_outfits: list, occasion: str, image_hash: str = "") -> dict:
+        cache_key = self._make_cache_key(garments, occasion, image_hash)
         """Generate outfit verdict using RAG — with caching"""
         print(f"[AI] get_verdict — garments: {len(garments)}, similar: {len(similar_outfits)}")
 
