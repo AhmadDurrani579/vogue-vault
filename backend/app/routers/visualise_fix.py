@@ -22,7 +22,7 @@ async def visualise_fix(request: Request, data: dict):
     negative_prompt = "blurry, distorted, low quality, deformed"
 
     headers = {
-        "Authorization": f"Bearer {settings.HF_TOKEN}",
+        # "Authorization": f"Bearer {settings.HF_TOKEN}",
         "Content-Type":  "application/json"
     }
 
