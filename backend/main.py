@@ -33,6 +33,7 @@ app.add_middleware(
 async def startup_event():
     logger.info("Starting VogueVault services...") # Use logger
     try:
+        app.state.cache = {}
         app.state.clip_engine = FashionCLIPEngine(settings.MODEL_ID)
         app.state.db          = DBService()
         await app.state.db.connect()
