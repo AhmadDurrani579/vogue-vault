@@ -6,7 +6,7 @@ from app.core.config import settings
 
 router = APIRouter()
 
-HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting"
 
 @router.post("/visualise-fix")
 async def visualise_fix(request: Request, data: dict):
