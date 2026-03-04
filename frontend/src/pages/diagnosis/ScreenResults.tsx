@@ -1,8 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import NavBar from "../../shared/components/NavBar";
 import LeftCameraPanel from '../../features/camera/components/LeftCameraPanel';
-import { Sparkles, ArrowUpCircle, Camera } from 'lucide-react';
+import { Sparkles, ArrowUpCircle, Camera, X, ShoppingBag } from 'lucide-react';
 import type { AnalysisResult } from "../../types";
+
+const BACKEND = "https://ahmaddurrani-vogue-vault-api.hf.space";
+
+interface Product {
+  name:         string;
+  category:     string;
+  brand:        string;
+  description:  string;
+  why:          string;
+  price_range:  string;
+  amazon_url:   string;
+  asos_url:     string;
+}
 
 interface Props {
   result:       AnalysisResult;
@@ -14,13 +27,35 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
   const { verdict, similar, garments } = result;
   const pointsGain = verdict.score_with_fix - verdict.score;
 
+  const [showFix, setShowFix]         = useState(false);
+  const [loadingFix, setLoadingFix]   = useState(false);
+  const [products, setProducts]       = useState<Product[]>([]);
+  const [fixError, setFixError]       = useState<string | null>(null);
+
   const scoreColor = verdict.score >= 80 ? "#28A745" :
                      verdict.score >= 60 ? "#C5A267" : "#D0021B";
 
   const headerPrefix = verdict.score >= 80 ? "Looking great —" :
                        verdict.score >= 60 ? "Almost perfect —" : "Needs some work —";
 
-  // Build dynamic garment list for "what's working"
+  const handleMagicFix = async () => {
+    setShowFix(true);
+    if (products.length > 0) return; // already loaded
+    setLoadingFix(true);
+    setFixError(null);
+    try {
+      const res = await fetch(`${BACKEND}/magic-fix`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ verdict, garments, occasion: "casual" })
+      });
+      const data = await res.json();
+      setProducts(data.products ?? []);
+    } catch (e) {
+      setFixError("Failed to load suggestions. Try again.");
+    }
+    setLoadingFix(false);
+  };
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#fcfaf7] font-sans overflow-hidden">
@@ -49,10 +84,8 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
           <div className="bg-white border border-[#EEEAE5] rounded-2xl p-5 flex items-center gap-8 shadow-sm shrink-0 max-w-4xl">
             <span className="font-bold text-[9px] text-[#1a1820]/40 tracking-[2px] uppercase whitespace-nowrap">Style Score</span>
             <div className="flex-1 h-2 bg-[#EEEAE5] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${verdict.score}%`, backgroundColor: scoreColor }}
-              />
+              <div className="h-full rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${verdict.score}%`, backgroundColor: scoreColor }} />
             </div>
             <div className="flex items-center gap-4">
               <span className="font-serif text-3xl font-bold italic text-[#1a1820]">
@@ -68,7 +101,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
           <section className="space-y-4 max-w-4xl">
             <h3 className="text-[9px] tracking-[3px] text-[#1a1820]/40 uppercase font-bold">What we found</h3>
 
-            {/* Card 1 — Primary issue (red) */}
+            {/* Card 1 — Red */}
             <div className="bg-white rounded-2xl border-l-4 border-[#D0021B] p-6 border border-[#EEEAE5] shadow-sm space-y-4">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
@@ -84,11 +117,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
                   Needs fixing
                 </span>
               </div>
-
-              <p className="text-[#1a1820]/60 leading-relaxed pl-9 text-sm">
-                {verdict.rag_insight}.
-              </p>
-
+              <p className="text-[#1a1820]/60 leading-relaxed pl-9 text-sm">{verdict.rag_insight}</p>
               <div className="bg-[#fcfaf7] rounded-xl p-4 border border-[#EEEAE5] border-dashed ml-9">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles size={14} className="text-[#C8882A]" />
@@ -99,15 +128,13 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
               </div>
             </div>
 
-            {/* Card 2 — Minor issue (amber) */}
+            {/* Card 2 — Amber */}
             <div className="bg-white rounded-2xl border-l-4 border-[#C5A267] p-6 border border-[#EEEAE5] shadow-sm space-y-4">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-[#C5A267] text-white text-[10px] font-black flex items-center justify-center shrink-0">2</span>
-                    <h3 className="text-base font-bold text-[#1a1820] tracking-tight">
-                      Score could be higher
-                    </h3>
+                    <h3 className="text-base font-bold text-[#1a1820] tracking-tight">Score could be higher</h3>
                   </div>
                   <p className="text-[9px] uppercase tracking-widest font-bold opacity-30 pl-9">
                     Colour harmony · Optional improvement
@@ -117,13 +144,10 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
                   Minor issue
                 </span>
               </div>
-
               <p className="text-[#1a1820]/60 leading-relaxed pl-9 text-sm">
-                Your current score is {verdict.score}/100. With the fix applied it reaches {verdict.score_with_fix}/100 — 
+                Your current score is {verdict.score}/100. With the fix applied it reaches {verdict.score_with_fix}/100 —
                 a difference of +{pointsGain} points. Small adjustments here can push the overall look significantly higher.
               </p>
-
-
               <div className="bg-[#fcfaf7] rounded-xl p-4 border border-[#EEEAE5] border-dashed ml-9">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles size={14} className="text-[#C5A267]" />
@@ -134,7 +158,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
               </div>
             </div>
 
-            {/* Card 3 — What's working (green) — always show */}
+            {/* Card 3 — Green */}
             <div className="bg-white rounded-2xl border-l-4 border-[#28A745] p-6 border border-[#EEEAE5] shadow-sm space-y-4">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
@@ -144,33 +168,28 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
                       {garments.slice(0, 2).map(g => g.garment).join(" + ")} combo is working
                     </h3>
                   </div>
-                  <p className="text-[9px] uppercase tracking-widest font-bold opacity-30 pl-9">
-                    On trend · Keep this
-                  </p>
+                  <p className="text-[9px] uppercase tracking-widest font-bold opacity-30 pl-9">On trend · Keep this</p>
                 </div>
                 <span className="px-2.5 py-0.5 bg-[#F1FAF4] text-[#28A745] text-[8px] font-black uppercase rounded-full border border-[#D4EDDA] shrink-0 ml-4">
                   Looks great
                 </span>
               </div>
-
-              {/* ← Use rag_insight for positive context, not summary */}
               <p className="text-[#1a1820]/60 leading-relaxed pl-9 text-sm">
-                {garments.slice(0, 2).map(g => g.garment).join(" and ")} are solid individual pieces. 
+                {garments.slice(0, 2).map(g => g.garment).join(" and ")} are solid individual pieces.
                 Focus the fix on {verdict.primary_issue.toLowerCase()} and this combination will land well.
-            </p>
+              </p>
             </div>
-            </section>
+          </section>
 
           {/* SIMILAR STYLES */}
           <section className="space-y-4 pb-28 max-w-4xl">
             <div className="flex justify-between items-end">
               <div>
                 <h3 className="text-xs font-bold text-[#1a1820]">Similar styles in memory</h3>
-                <p className="text-[9px] text-[#1a1820]/40 mt-0.5">Your outfit was compared against these — the ones with the fix score significantly higher</p>
+                <p className="text-[9px] text-[#1a1820]/40 mt-0.5">Your outfit compared against these — ones with the fix score higher</p>
               </div>
               <div className="text-[8px] font-bold tracking-widest text-[#1a1820]/20 uppercase">RAG · 5,000 LOOKS INDEXED</div>
             </div>
-
             <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
               {similar.map((item, i) => (
                 <div key={i} className="min-w-[130px] group shrink-0">
@@ -178,8 +197,7 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
                     <img src={item.image_url} alt="similar outfit" className="w-full h-full object-cover" />
                   </div>
                   <div className={`w-full py-1 rounded-md text-[9px] font-black text-center text-white
-                    ${item.similarity > 0.7 ? "bg-[#28A745]" :
-                      item.similarity > 0.5 ? "bg-[#C5A267]" : "bg-[#aaa]"}`}>
+                    ${item.similarity > 0.7 ? "bg-[#28A745]" : item.similarity > 0.5 ? "bg-[#C5A267]" : "bg-[#aaa]"}`}>
                     {Math.round(item.similarity * 100)}pts
                   </div>
                   <p className="text-[9px] text-center text-[#1a1820]/40 mt-1 truncate">
@@ -192,7 +210,9 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
 
           {/* ACTION BAR */}
           <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#EEEAE5] px-12 py-4 flex gap-3 justify-center">
-            <button className="bg-[#C8882A] text-white px-6 py-3 rounded-full font-bold text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2 hover:bg-[#e8a840] transition-all">
+            <button
+              onClick={handleMagicFix}
+              className="bg-[#C8882A] text-white px-6 py-3 rounded-full font-bold text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2 hover:bg-[#e8a840] transition-all">
               <Sparkles size={12} /> Fix My Outfit
             </button>
             <button onClick={onReset} className="bg-white border border-[#EEEAE5] text-[#1a1820] px-6 py-3 rounded-full font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-[#fcfaf7] transition-all shadow-md">
@@ -202,9 +222,70 @@ const ScreenResults: React.FC<Props> = ({ result, imagePreview, onReset }) => {
               🗂 Save to Wardrobe
             </button>
           </footer>
-
         </main>
       </div>
+
+      {/* MAGIC FIX MODAL */}
+      {showFix && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm">
+          <div className="bg-white rounded-t-3xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl">
+
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-[#EEEAE5] px-8 py-5 flex justify-between items-center rounded-t-3xl">
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.3em] font-bold text-[#C5A267]">— AI Recommendations</div>
+                <h2 className="font-serif text-2xl text-[#1a1820]">✨ Magic Fix</h2>
+              </div>
+              <button onClick={() => setShowFix(false)}
+                className="w-8 h-8 rounded-full bg-[#f0ece8] flex items-center justify-center hover:bg-[#e2ddd6] transition-colors">
+                <X size={14} className="text-[#1a1820]" />
+              </button>
+            </div>
+
+            <div className="px-8 py-6 space-y-4">
+              {loadingFix ? (
+                <div className="flex flex-col items-center py-12 gap-4">
+                  <div className="animate-spin w-10 h-10 border-2 border-[#c8882a] border-t-transparent rounded-full" />
+                  <p className="text-sm text-[#1a1820]/40 font-medium">Finding the best products for you...</p>
+                </div>
+              ) : fixError ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-[#D0021B]">{fixError}</p>
+                  <button onClick={handleMagicFix} className="mt-4 text-xs text-[#c8882a] underline">Try again</button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-[#1a1820]/50">
+                    Based on your diagnosis — <span className="font-semibold text-[#1a1820]">{verdict.fix}</span>
+                  </p>
+                  {products.map((p, i) => (
+                    <div key={i} className="border border-[#EEEAE5] rounded-2xl p-5 space-y-3 hover:border-[#c8882a]/30 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-0.5">
+                          <h3 className="font-bold text-[#1a1820] text-sm">{p.name}</h3>
+                          <p className="text-[10px] text-[#1a1820]/40">{p.brand} · {p.category}</p>
+                        </div>
+                        <span className="font-serif text-lg text-[#c8882a] shrink-0 ml-4">{p.price_range}</span>
+                      </div>
+                      <p className="text-xs text-[#1a1820]/60 leading-relaxed">{p.why}</p>
+                      <div className="flex gap-2 pt-1">
+                        <a href={p.amazon_url} target="_blank" rel="noreferrer"
+                          className="flex-1 py-2.5 text-center text-[10px] font-bold bg-[#FF9900] text-white rounded-xl hover:bg-[#e88800] transition-colors flex items-center justify-center gap-1.5">
+                          <ShoppingBag size={11} /> Shop Amazon
+                        </a>
+                        <a href={p.asos_url} target="_blank" rel="noreferrer"
+                          className="flex-1 py-2.5 text-center text-[10px] font-bold bg-[#1a1820] text-white rounded-xl hover:bg-[#c8882a] transition-colors flex items-center justify-center gap-1.5">
+                          <ShoppingBag size={11} /> Shop ASOS
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
