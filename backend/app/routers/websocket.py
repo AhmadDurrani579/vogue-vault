@@ -147,7 +147,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # ── Step 3: OpenAI verdict
             await safe_send({"step": 3, "status": "active", "label": "Analysing your outfit"})
 
-            verdict = ai.get_verdict(detected, similar, occasion)
+            verdict = ai.get_verdict(detected, similar, occasion, image_hash=image_hash)
 
             await safe_send({
                 "step":   3,

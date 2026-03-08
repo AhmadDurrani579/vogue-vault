@@ -12,6 +12,7 @@ HF_API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-lab
 async def visualise_fix(request: Request, data: dict):
     fix_text = data.get("fix")
     garment  = data.get("garment", "")
+    occasion = data.get("occasion", "casual")
 
     if not fix_text:
         return {"status": "error", "message": "Missing fix text"}
@@ -19,7 +20,8 @@ async def visualise_fix(request: Request, data: dict):
     if not settings.HF_TOKEN:
         return {"status": "error", "message": "HF_TOKEN not configured"}
 
-    prompt = f"professional fashion photo, {fix_text}, white background, studio lighting, high quality, photorealistic"
+    prompt = f"professional fashion photo, male model, {fix_text}, {occasion} outfit, white background, studio lighting, high quality"
+
 
     headers = {
         "Authorization": f"Bearer {settings.HF_TOKEN}",

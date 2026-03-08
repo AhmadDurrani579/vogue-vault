@@ -44,6 +44,7 @@ async def startup_event():
         logger.error(f"Startup ERROR: {str(e)}", exc_info=True)
 
 @app.get("/health")
+@app.head("/health")
 def health():
     return {"status": "ok"}
 
