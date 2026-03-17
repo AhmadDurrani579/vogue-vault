@@ -360,8 +360,8 @@ Auto-deploys on push to main via GitHub Actions.
 
 ## Author
 
-**Ahmad Durrani**  
-MSc Student, UK  
+**Ahmad Yar**  
+Robotics & AI Engineer 
 [LinkedIn](https://www.linkedin.com/in/ahmad-yar-98990690) · [HuggingFace](https://huggingface.co/AhmadDurrani)
 
 ---
